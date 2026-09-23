@@ -1,0 +1,156 @@
+name: Build Zenith (cloned from private)
+
+on:
+  workflow_dispatch:
+    inputs:
+      changelog:
+        description: 'Changelog entries — satu per baris, format: - fix ...'
+        required: true
+        default: ''
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      CARGO_TERM_COLOR: always
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+    steps:
+      - name: Clone private Zenith
+        run: |
+          git clone --depth 1 https://x-access-token:${{ secrets.ZENITH_PAT }}@github.com/xiaobai-yp/Zenith.git .
+
+      - name: Cache Rust
+        uses: actions/cache@v4
+        with:
+          path: |
+            daemon/rust/target
+            ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-${{ hashFiles('daemon/rust/**') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Setup NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27b
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Build daemon
+        working-directory: daemon/rust
+        run: |
+          TOOLCHAIN=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin
+          export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$TOOLCHAIN/aarch64-linux-android24-clang
+          cargo build --release --target aarch64-linux-android
+          mkdir -p ../../app/src/main/assets
+          cp target/aarch64-linux-android/release/zenithd ../../app/src/main/assets/zenithd
+          chmod 755 ../../app/src/main/assets/zenithd
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+          accept-android-sdk-licenses: true
+
+      - name: Install Android SDK packages
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+        run: |
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+
+          if [[ ! -x "$SDKMANAGER" ]]; then
+            SDKMANAGER="$(find "$ANDROID_SDK_ROOT/cmdline-tools" -type f -name sdkmanager -perm -u+x -print -quit)"
+          fi
+
+          if [[ -z "$SDKMANAGER" || ! -x "$SDKMANAGER" ]]; then
+            echo "sdkmanager not found or not executable under $ANDROID_SDK_ROOT"
+            find "$ANDROID_SDK_ROOT" -maxdepth 5 -type f -name sdkmanager -print || true
+            exit 1
+          fi
+
+          test -x "$SDKMANAGER"
+
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
+          echo "$ANDROID_SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+
+          yes | "$SDKMANAGER" --sdk_root="$ANDROID_SDK_ROOT" --licenses
+          "$SDKMANAGER" --sdk_root="$ANDROID_SDK_ROOT" \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
+
+          test -d "$ANDROID_SDK_ROOT/platforms/android-35"
+          test -x "$ANDROID_SDK_ROOT/build-tools/35.0.0/aapt2"
+
+      - name: Extract version info
+        id: version
+        run: |
+          VERSION_NAME=$(grep -oP "versionName\\s+['\\\"]\\K[^'\\\"]+" app/build.gradle | head -1)
+          VERSION_CODE=$(grep -oP "versionCode\\s+\\K\\d+" app/build.gradle | head -1)
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
+          echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+
+      - name: Build debug APK
+        run: |
+          set -o pipefail
+          ./gradlew assembleDebug --stacktrace --info 2>&1 | tee gradle_build.log
+          echo "Exit code: $?"
+
+      - name: Upload Gradle build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-build-log
+          path: gradle_build.log
+          retention-days: 5
+
+      - name: Upload debug artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Build release APK
+        run: ./gradlew assembleRelease --stacktrace --info
+
+      - name: Rename release APK
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk zenith-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.short_sha }}-release.zip
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: zenith-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.short_sha }}-release.zip
+
+      - name: Create GitHub Release
+        if: github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v2.0.0-${{ steps.version.outputs.short_sha }}
+          name: v2.0.0
+          draft: false
+          prerelease: false
+          files: |
+            zenith-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.short_sha }}-release.zip
+          body: |
+            ## Changelog
+
+            ${{ inputs.changelog }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
