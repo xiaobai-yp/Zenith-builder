@@ -1,4 +1,4 @@
-name: Build Zenith (cloned from private)
+name: Build Zenith (private source)
 
 on:
   workflow_dispatch:
@@ -11,8 +11,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     env:
       CARGO_TERM_COLOR: always
       ANDROID_HOME: /usr/local/lib/android/sdk
@@ -99,31 +97,10 @@ jobs:
         run: |
           VERSION_NAME=$(grep -oP "versionName\\s+['\\\"]\\K[^'\\\"]+" app/build.gradle | head -1)
           VERSION_CODE=$(grep -oP "versionCode\\s+\\K\\d+" app/build.gradle | head -1)
-          SHORT_SHA=$(git rev-parse --short HEAD)
+          SHORT_SHA=$(git -C . rev-parse --short HEAD)
           echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
           echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
           echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
-
-      - name: Build debug APK
-        run: |
-          set -o pipefail
-          ./gradlew assembleDebug --stacktrace --info 2>&1 | tee gradle_build.log
-          echo "Exit code: $?"
-
-      - name: Upload Gradle build log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: gradle-build-log
-          path: gradle_build.log
-          retention-days: 5
-
-      - name: Upload debug artifact
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
 
       - name: Build release APK
         run: ./gradlew assembleRelease --stacktrace --info
@@ -132,25 +109,18 @@ jobs:
         run: |
           cp app/build/outputs/apk/release/app-release.apk zenith-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.short_sha }}-release.zip
 
-      - name: Upload release artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release
-          path: zenith-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.short_sha }}-release.zip
-
-      - name: Create GitHub Release
+      - name: Publish release to private Zenith
         if: github.event_name == 'workflow_dispatch'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v2.0.0-${{ steps.version.outputs.short_sha }}
-          name: v2.0.0
-          draft: false
-          prerelease: false
-          files: |
-            zenith-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.short_sha }}-release.zip
-          body: |
-            ## Changelog
-
-            ${{ inputs.changelog }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.gh_token }}
+        run: |
+          APK="zenith-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.short_sha }}-release.zip"
+          TAG="v2.0.0-${{ steps.version.outputs.short_sha }}"
+          gh release create "$TAG" "$APK" \
+            --repo xiaobai-yp/Zenith \
+            --title "v2.0.0" \
+            --notes "## Changelog
+
+          ${{ inputs.changelog }}"
+          # Cleanup APK locally so it doesn't linger in runner workspace
+          rm -f "$APK"
