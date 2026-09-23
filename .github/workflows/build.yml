@@ -116,6 +116,8 @@ jobs:
         run: |
           APK="zenith-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.short_sha }}-release.zip"
           TAG="v2.0.0-${{ steps.version.outputs.short_sha }}"
+          # Delete existing release/tag if same SHA was released before
+          gh release delete "$TAG" --repo xiaobai-yp/Zenith --yes 2>/dev/null || true
           gh release create "$TAG" "$APK" \
             --repo xiaobai-yp/Zenith \
             --title "v2.0.0" \
