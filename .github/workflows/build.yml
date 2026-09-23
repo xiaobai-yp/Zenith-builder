@@ -20,7 +20,7 @@ jobs:
     steps:
       - name: Clone private Zenith
         run: |
-          git clone --depth 1 https://x-access-token:${{ secrets.ZENITH_PAT }}@github.com/xiaobai-yp/Zenith.git .
+          git clone --depth 1 https://x-access-token:${{ secrets.gh_token }}@github.com/xiaobai-yp/Zenith.git .
 
       - name: Cache Rust
         uses: actions/cache@v4
