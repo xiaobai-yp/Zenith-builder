@@ -107,14 +107,14 @@ jobs:
 
       - name: Rename release APK
         run: |
-          cp app/build/outputs/apk/release/app-release.apk zenith-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.short_sha }}-release.zip
+          cp app/build/outputs/apk/release/app-release.apk zenith-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.short_sha }}.apk
 
       - name: Publish release to private Zenith
         if: github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ secrets.gh_token }}
         run: |
-          APK="zenith-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.short_sha }}-release.zip"
+          APK="zenith-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.short_sha }}.apk"
           TAG="v2.0.0-${{ steps.version.outputs.short_sha }}"
           # Delete existing release/tag if same SHA was released before
           gh release delete "$TAG" --repo xiaobai-yp/Zenith --yes 2>/dev/null || true
