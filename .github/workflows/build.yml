@@ -44,6 +44,9 @@ jobs:
         run: |
           TOOLCHAIN=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin
           export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$TOOLCHAIN/aarch64-linux-android24-clang
+          # Hide the Android clang from cc-rs so it picks it instead of host gcc
+          export CC_aarch64_linux_android=$TOOLCHAIN/aarch64-linux-android24-clang
+          export AR_aarch64_linux_android=$TOOLCHAIN/llvm-ar
           cargo build --release --target aarch64-linux-android
           mkdir -p ../../app/src/main/assets
           cp target/aarch64-linux-android/release/zenithd ../../app/src/main/assets/zenithd
