@@ -7,6 +7,10 @@ on:
         description: 'Changelog entries — satu per baris, format: - fix ...'
         required: true
         default: ''
+      ref:
+        description: 'Branch of xiaobai-yp/Zenith to build (default main)'
+        required: false
+        default: 'main'
 
 jobs:
   build:
@@ -18,7 +22,7 @@ jobs:
     steps:
       - name: Clone private Zenith
         run: |
-          git clone --depth 1 https://x-access-token:${{ secrets.gh_token }}@github.com/xiaobai-yp/Zenith.git .
+          git clone --depth 1 --branch ${{ inputs.ref }} https://x-access-token:${{ secrets.gh_token }}@github.com/xiaobai-yp/Zenith.git .
 
       - name: Cache Rust
         uses: actions/cache@v4
