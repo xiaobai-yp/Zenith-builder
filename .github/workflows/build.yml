@@ -22,11 +22,11 @@ jobs:
     steps:
       - name: Clone private Zenith
         run: |
-          git clone --depth 1 --branch ${{ inputs.ref }} https://x-access-token:*** secrets.gh_token }}@github.com/xiaobai-yp/Zenith.git .
+          git clone --depth 1 --branch ${{ inputs.ref }} https://x-access-token:${{ secrets.gh_token }}@github.com/xiaobai-yp/Zenith.git .
 
       - name: Clone signing repo
         run: |
-          git clone --depth 1 https://x-access-token:*** secrets.gh_token }}@github.com/xiaobai-yp/Signkey-zenith.git /tmp/signkey
+          git clone --depth 1 https://x-access-token:${{ secrets.gh_token }}@github.com/xiaobai-yp/Signkey-zenith.git /tmp/signkey
           cp /tmp/signkey/zenith-key.jks app/zenith-key.jks
           cp /tmp/signkey/key.properties app/key.properties
           rm -rf /tmp/signkey
