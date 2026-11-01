@@ -114,7 +114,7 @@ jobs:
           SHORT_SHA=$(git -C . rev-parse --short HEAD)
           echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
           echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
-          echo "short_sha=$SHORT_SHA" >> 
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
 
       - name: Build release APK
         run: ./gradlew assembleRelease --stacktrace
@@ -122,7 +122,7 @@ jobs:
       - name: Rename release APK
         run: |
           cp app/build/outputs/apk/release/app-release.apk zenith-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.short_sha }}.apk
-                                  
+          
       - name: Publish release to private Zenith
         if: github.event_name == 'workflow_dispatch'
         env:
