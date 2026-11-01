@@ -122,7 +122,6 @@ jobs:
           test -s app/key.properties || { echo "Missing or empty signing file: app/key.properties" >&2; exit 1; }
 
       - name: Build release APK
-        timeout-minutes: 30
         run: ./gradlew assembleRelease --stacktrace --console=plain --info
 
       - name: Rename release APK
