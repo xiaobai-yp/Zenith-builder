@@ -115,9 +115,14 @@ jobs:
           echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
           echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
           echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
-
-      - name: Build release APK
-        run: ./gradlew assembleRelease --stacktrace
+                
+      - name: Check signing files exist
+              run: |
+              test -s app/zenith-key.jks || { echo "Missing or empty signing file: app/zenith-key.jks" >&2; exit 1; }
+                        test -s app/key.properties || { echo "Missing or empty signing file: app/key.properties" >&2; exit 1; }
+                        - name: Build release APK
+        timeout-minutes: 30
+        run: ./gradlew assembleRelease --stacktrace --console=plain --info
 
       - name: Rename release APK
         run: |
