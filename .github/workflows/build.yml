@@ -124,9 +124,9 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk zenith-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.short_sha }}.apk
 
       - name: Verify APK signatures (V1+V2+V3)
-              run: |
-                        APK="zenith-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.short_sha }}.apk"
-                                  "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK"
+        run: |
+         APK="zenith-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.short_sha }}.apk"
+              "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK"
                                   
       - name: Publish release to private Zenith
         if: github.event_name == 'workflow_dispatch'
